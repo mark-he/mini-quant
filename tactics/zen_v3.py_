@@ -1,0 +1,79 @@
+import numpy as np
+
+from tactics.support.api import *
+from tactics.support.objects import *
+from tactics.support import indicator
+import math
+import datetime
+import utils.date_utils as date_utils
+from tactics.support import toolkit
+
+config=Config(name='MA34金叉MA170', release=True)
+
+'''
+数据测试
+'''
+
+def init(context):
+    print('analysing: ' + context.symbol)
+    context.count=500
+    subscribe(context, context.symbol, context.count, on_bar)
+    return True
+
+def on_bar(context, bars):
+    print('analysing: ' + date_utils.date2str(context.now))
+    if len(bars) < context.count:
+        return
+    if context.share['name'].startswith('ST') or context.share['name'].startswith('*'): #非 ST
+        return
+
+    handle_buy(context, bars)
+
+
+def finished(context, bars):
+    pass
+
+
+
+def handle_buy(context, bars):
+    bar = bars.iloc[-1]
+    suggest = 'None'
+
+    ma34 = indicator.ma(bars['close'], 34)
+    ma170 = indicator.ma(bars['close'], 170)
+
+    matched = False
+    if ma34[-1] > ma170[-1] and ma34[-5] <= ma170[-5]:
+        matched = True
+
+    if matched:
+        suggest = 'Buy'
+
+    if suggest == 'Buy':
+        buy(context, context.symbol, bar['close'])
+        print('Buy {} on {}'.format(context.share['name'], context.now.strftime('%Y-%m-%d')))
+
+
+def handle_sell(context, bars, position):
+    pass
+
+def reach_percent(prev, next, percent):
+    upper_price = prev * (1 + percent)
+    upper_price = round(math.floor(upper_price * 100) / 100, 2)  # 排除滑价
+    return next >= upper_price
+
+
+def on_start_run(account):
+    print('start=' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+
+def on_stop_run(account):
+    print('end=' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+
+if __name__ == '__main__':
+    run(
+        type=RUN_TYPE_ANALYSIS,
+        symbol='300686',
+        #start_date='20220101'
+    )
